@@ -15,8 +15,10 @@
 | `Test-SharpTv.ps1`     | Sharp     | ASCII 8 ตัว + CR (`POWR0001`)             | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
 | `Test-NecTv.ps1`       | NEC       | External-control frame (SOH…ETX+BCC+CR)   | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
 | `Test-PhilipsTv.ps1`   | Philips   | SICP `[len][id][00][cmd]…[xor]`           | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
+| `Test-ToshibaTv.ps1`   | Toshiba   | ⚠️ ต่างตามรุ่น (TD-Z commercial/REGZA/ไม่มี) | 🧩 scaffold — เปิดพอร์ต + `-Raw` ได้ (ยังไม่ wire `-Command`) |
 
 > "byte ตรวจแล้ว" = รูปแบบเฟรม/คำสั่ง/checksum อ้างอิงจาก spec/แหล่งทางการแล้ว แต่ยัง**ไม่ได้ทดสอบกับจอจริง** — เทสหน้างานด้วย smoke test (รันเปล่าๆ) ก่อนเสมอ
+> 🧩 "scaffold" = โครงที่เปิดพอร์ต + รับ `-Raw` (แปะ byte จาก doc รุ่นมายิงเอง) ได้ แต่ยังไม่ map คำสั่ง friendly เพราะโปรโตคอลต่างตามรุ่น — ส่งรุ่น + เอกสาร RS232 มาเดี๋ยว wire `-Command` ให้เต็ม
 
 ## วิธีใช้ (เหมือนกันทุกตัว — คำสั่งแบบ friendly)
 
@@ -56,7 +58,8 @@
 
 - **Hisense** (E/M/WR series) — ASCII `S<id>POWR<ON/OFF>##<xor><CR>` เช่น power-on ID 5FA = `53 35 46 41 50 4F 57 52 4F 4E 23 23 C6 0D` · checksum = XOR เฉพาะบาง byte (เอกสารไฮไลต์สีเขียว) → ต้องดู doc รุ่นถึงคำนวณคำสั่งอื่นได้ · [Hisense RS232/IR Protocol PDF](https://assets.hisense-usa.com/assets/ProductDownloads/18/5342defe83/Hisense-RS-232-and-IR-Protocol-English_2.pdf)
 - **ViewSonic** (commercial) — มี spec กลาง · [Commercial Displays RS232 PDF](https://www.viewsonicglobal.com/public/products_download/97/Commercial_Displays_RS232.pdf)
-- **TCL / Toshiba** — โปรโตคอลไม่ standard (แล้วแต่ ODM/รุ่น) → ต้องขอเอกสารรายรุ่น
+- **TCL** — โปรโตคอลไม่ standard (แล้วแต่ ODM/รุ่น) → ต้องขอเอกสารรายรุ่น
+- **Toshiba** — มี scaffold `Test-ToshibaTv.ps1` แล้ว (เปิดพอร์ต + `-Raw` ได้); จะ wire `-Command` เต็มเมื่อได้รุ่น + doc — TD-Z/TD-E commercial มี spec ใน user manual ของรุ่น (เฟรม `[address][function][data][end]`), REGZA consumer ส่วนใหญ่ไม่มี RS232, HD-DVD player = start `0x45 0xB5` (คนละอุปกรณ์)
 
 ## วิธีเพิ่ม tester รุ่นใหม่
 
