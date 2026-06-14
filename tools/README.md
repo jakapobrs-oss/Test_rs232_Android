@@ -15,6 +15,8 @@
 | `Test-SharpTv.ps1`     | Sharp     | ASCII 8 ตัว + CR (`POWR0001`)             | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
 | `Test-NecTv.ps1`       | NEC       | External-control frame (SOH…ETX+BCC+CR)   | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
 | `Test-PhilipsTv.ps1`   | Philips   | SICP `[len][id][00][cmd]…[xor]`           | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
+| `Test-HisenseTv.ps1`   | Hisense   | Prosumer U1600 `[S/Q][id3][CMD4][DATA4][cks]` | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
+| `Test-ViewSonicTv.ps1` | ViewSonic | Commercial ASCII `'8'[ID][type][cmd][val×3]` | ✅ byte ตรวจแล้ว (รอเทสหน้างาน) |
 | `Test-ToshibaTv.ps1`   | Toshiba   | ⚠️ ต่างตามรุ่น (TD-Z commercial/REGZA/ไม่มี) | 🧩 scaffold — เปิดพอร์ต + `-Raw` ได้ (ยังไม่ wire `-Command`) |
 
 > "byte ตรวจแล้ว" = รูปแบบเฟรม/คำสั่ง/checksum อ้างอิงจาก spec/แหล่งทางการแล้ว แต่ยัง**ไม่ได้ทดสอบกับจอจริง** — เทสหน้างานด้วย smoke test (รันเปล่าๆ) ก่อนเสมอ
@@ -51,13 +53,14 @@
 - **Sharp (AQUOS)** — ASCII 8 ตัว+CR: `POWR0001`(on)/`POWR0000`(off)/`POWR????`(ถาม) · `RSPW0001`=อนุญาตปลุกจาก standby · ตอบ `OK`/`ERR`
 - **NEC** — `[SOH]'0'[dest][src][type][len][STX][msg][ETX][BCC][CR]`, BCC=XOR(หลัง SOH→ETX) · type A=command/E=set param · มักต้องสายไขว้
 - **Philips (SICP)** — `[len][id][0x00][cmd][data][xor]` · cmd 0x18 set power(01=off/02=on)/0x19 get power/0x44 vol · ตอบ ACK=0x06/NACK=0x15
+- **Hisense (U1600 Prosumer)** — `[OP][id3][cmd4][data4][cks]`+CR · OP `S`=set/`Q`=query · cmd POWR/VOLM/MUTE/INPT · data 4 ASCII (`????`=query) · cks=(256−Σ)&0xFF · id "ALL"=ทุกจอ หรือ 3 หลักท้าย MAC · 38400 8N1 · ⚠️ คนละตัวกับ E/M/WR series (RJ45, `S<id>POWR##<xor>`)
+- **ViewSonic (Commercial)** — ASCII ล้วน ไม่มี checksum · `'8'[id2][type][cmd][val×3]`+CR · type `s`=set/`g`=get · set Power `!`/Vol `5`/Mute `6`/Input `"` · get Power `l`/Vol `f`/Mute `g` · 9600 8N1 null-modem
 
 ## ⏳ ยี่ห้อที่ยังไม่ได้ทำ (backlog — รอ verify เฉพาะรุ่น)
 
 ยังไม่ ship เพราะ checksum/รหัสคำสั่ง**ต่างกันมากตามรุ่น** ถ้าจะใช้ ส่ง model + เอกสาร RS232 ของรุ่นนั้นมา เดี๋ยวเติม tester ให้:
 
-- **Hisense** (E/M/WR series) — ASCII `S<id>POWR<ON/OFF>##<xor><CR>` เช่น power-on ID 5FA = `53 35 46 41 50 4F 57 52 4F 4E 23 23 C6 0D` · checksum = XOR เฉพาะบาง byte (เอกสารไฮไลต์สีเขียว) → ต้องดู doc รุ่นถึงคำนวณคำสั่งอื่นได้ · [Hisense RS232/IR Protocol PDF](https://assets.hisense-usa.com/assets/ProductDownloads/18/5342defe83/Hisense-RS-232-and-IR-Protocol-English_2.pdf)
-- **ViewSonic** (commercial) — มี spec กลาง · [Commercial Displays RS232 PDF](https://www.viewsonicglobal.com/public/products_download/97/Commercial_Displays_RS232.pdf)
+- **Hisense E/M/WR series (RJ45)** — ✅ ตัว **U1600 Prosumer (DB9)** ทำแล้ว → `Test-HisenseTv.ps1`; ที่ยังเหลือคือ commercial **E/M/WR ต่อ RJ45** ซึ่งเป็นคนละเฟรม: ASCII `S<id>POWR<ON/OFF>##<xor><CR>` เช่น `53 35 46 41 50 4F 57 52 4F 4E 23 23 C6 0D` · checksum = XOR เฉพาะบาง byte → ต้องดู doc รุ่น · [Hisense E/M/WR RS232 (RJ45) Guide](https://www.hisense-b2b.com/US/Attachment/DownloadFile?downloadId=5)
 - **TCL** — โปรโตคอลไม่ standard (แล้วแต่ ODM/รุ่น) → ต้องขอเอกสารรายรุ่น
 - **Toshiba** — มี scaffold `Test-ToshibaTv.ps1` แล้ว (เปิดพอร์ต + `-Raw` ได้); จะ wire `-Command` เต็มเมื่อได้รุ่น + doc — TD-Z/TD-E commercial มี spec ใน user manual ของรุ่น (เฟรม `[address][function][data][end]`), REGZA consumer ส่วนใหญ่ไม่มี RS232, HD-DVD player = start `0x45 0xB5` (คนละอุปกรณ์)
 
@@ -71,7 +74,7 @@
 ### ⚠️ Encoding (สำคัญ)
 สคริปต์ใหม่ทุกตัวเซฟเป็น **UTF-8 with BOM** เพราะ Windows PowerShell 5.1 อ่านไฟล์ที่**ไม่มี BOM** เป็น ANSI →
 คอมเมนต์/ข้อความไทยเพี้ยน และอาจ parse พังหน้างาน. ถ้าสร้างไฟล์ใหม่ ให้บันทึกเป็น UTF-8 BOM เสมอ
-(ตัว `Test-LgTv.ps1` เดิมยังเป็น no-BOM — รันได้บน PowerShell 7/console UTF-8 แต่ควรแปลงเป็น BOM ให้ชัวร์ทุกเครื่อง)
+(ตอนนี้ทุกไฟล์ `Test-*.ps1` เป็น UTF-8 BOM ครบแล้ว รวม `Test-LgTv.ps1` ที่แปลงจาก no-BOM — verify ผ่าน ParseFile ทุกตัว)
 
 ตรวจ syntax ทุกไฟล์เร็วๆ:
 ```powershell
